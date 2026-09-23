@@ -89,10 +89,6 @@ def box_bottom():
     return box_top(left="└", right="┘")
 
 
-def box_divider():
-    return box_top(left="├", right="┤")
-
-
 def box_row(visible_text="", display_text=None, align="left"):
     """
     Print one bordered single-column row.
@@ -119,10 +115,16 @@ def box_row(visible_text="", display_text=None, align="left"):
 
 
 def print_header(section_title):
-    """Print a bordered header box: school name on top, section title below."""
+    """Print two separate bordered boxes: school name + project title on
+    top, then the section title below -- the same banner style used on
+    the main menu, kept consistent on every section."""
     print(box_top())
     box_row(SCHOOL_NAME, align="center")
-    print(box_divider())
+    box_row(PROJECT_TITLE, align="center")
+    print(box_bottom())
+    print()
+
+    print(box_top())
     box_row(section_title, align="center")
     print(box_bottom())
     print()
@@ -184,11 +186,15 @@ def status_display(status, width=None):
 
 
 def print_menu():
-    # Title banner: school name, full project title, and the section
-    # subtitle -- all three rows kept, one on top of the other.
+    # First banner: school name + full project title.
     print(box_top())
     box_row(SCHOOL_NAME, align="center")
     box_row(PROJECT_TITLE, align="center")
+    print(box_bottom())
+    print()
+
+    # Second banner: its own bordered box for the subtitle.
+    print(box_top())
     box_row(MENU_SUBTITLE, align="center")
     print(box_bottom())
     print()
