@@ -6,10 +6,12 @@ A console program that manages student records, computes quiz
 averages and final grades, and generates a class report.
 
 Features:
-- Bordered / boxed sections for a cleaner console look
-- Color-coded PASSED (green) / FAILED (red) status
-- A Reset function that clears all student records (with confirmation)
-- Screen clearing + "Press Enter" pauses for a smoother, less cluttered flow
+- Full grid borders (rows AND columns) on every screen: the menu,
+  the student table, and the student detail card are all real
+  bordered grids, not just boxed headers.
+- Color-coded PASSED (green) / FAILED (red) status.
+- A Reset function that clears all student records (with confirmation).
+- Screen clearing + "Press Enter" pauses for a smoother, less cluttered flow.
 
 Grade Computation:
     Quiz Average = (Quiz 1 + Quiz 2 + Quiz 3) / 3
@@ -22,6 +24,7 @@ Passing grade: 75 and above.
 """
 
 import os
+import re
 
 # Enable ANSI color rendering on older Windows terminals (cmd.exe).
 # Modern terminals (Linux, macOS, Windows Terminal, VS Code) already
@@ -34,9 +37,12 @@ if os.name == "nt":
 # Configuration / constants
 # ------------------------------------------------------------------
 SCHOOL_NAME = "METRO BUSINESS COLLEGE"
+PROJECT_TITLE = "STUDENT INFORMATION & GRADE MANAGEMENT SYSTEM"
+MENU_SUBTITLE = "STUDENT GRADE MANAGEMENT"
 PASSING_GRADE = 75
-BOX_WIDTH = 48                  # total width of a bordered box (incl. borders)
-INNER_WIDTH = BOX_WIDTH - 2     # usable width inside the left/right borders
+
+BOX_WIDTH = 52                  # total width of every box/grid (incl. borders)
+INNER_WIDTH = BOX_WIDTH - 2      # usable width inside a single-column box
 
 students = []  # list of dictionaries -- the in-memory student database
 
@@ -51,8 +57,16 @@ class Colors:
     CYAN = "\033[36m"
 
 
+ANSI_RE = re.compile(r"\033\[[0-9;]*m")
+
+
+def visible_len(text):
+    """Length of `text` as it appears on screen, ignoring ANSI color codes."""
+    return len(ANSI_RE.sub("", text))
+
+
 # ------------------------------------------------------------------
-# Screen + border helpers
+# Screen helpers
 # ------------------------------------------------------------------
 def clear_screen():
     """Clear the terminal so every section starts on a clean screen."""
@@ -64,6 +78,9 @@ def pause():
     input(f"\n{Colors.CYAN}Press Enter to return to the menu...{Colors.RESET}")
 
 
+# ------------------------------------------------------------------
+# Single-column box helpers (headers, banners, message boxes)
+# ------------------------------------------------------------------
 def box_top(left="┌", right="┐"):
     return f"{Colors.CYAN}{left}{'─' * INNER_WIDTH}{right}{Colors.RESET}"
 
@@ -78,7 +95,7 @@ def box_divider():
 
 def box_row(visible_text="", display_text=None, align="left"):
     """
-    Print one bordered row.
+    Print one bordered single-column row.
 
     `visible_text` must be the PLAIN text (no color codes) -- it is used
     to work out how much padding is needed so the right border still
@@ -111,19 +128,52 @@ def print_header(section_title):
     print()
 
 
-def print_menu():
+def print_message_box(text, color=None):
+    """Print a short result / status message inside its own bordered box."""
+    display_text = text if color is None else f"{color}{text}{Colors.RESET}"
     print(box_top())
-    box_row(SCHOOL_NAME, align="center")
-    box_row("STUDENT GRADE MANAGEMENT", align="center")
+    box_row(text, display_text, align="center")
     print(box_bottom())
-    print()
-    print(f"  {Colors.YELLOW}[1]{Colors.RESET} Add Student")
-    print(f"  {Colors.YELLOW}[2]{Colors.RESET} View All Students")
-    print(f"  {Colors.YELLOW}[3]{Colors.RESET} Search Student")
-    print(f"  {Colors.YELLOW}[4]{Colors.RESET} Show Highest Grade")
-    print(f"  {Colors.YELLOW}[5]{Colors.RESET} Reset All Data")
-    print(f"  {Colors.YELLOW}[6]{Colors.RESET} Exit")
-    print()
+
+
+# ------------------------------------------------------------------
+# Multi-column grid helpers (menu, student table, student card)
+# ------------------------------------------------------------------
+def grid_border(col_widths, left, mid, right):
+    parts = ["─" * w for w in col_widths]
+    return f"{Colors.CYAN}{left}{mid.join(parts)}{right}{Colors.RESET}"
+
+
+def grid_top(col_widths):
+    return grid_border(col_widths, "┌", "┬", "┐")
+
+
+def grid_divider(col_widths):
+    return grid_border(col_widths, "├", "┼", "┤")
+
+
+def grid_bottom(col_widths):
+    return grid_border(col_widths, "└", "┴", "┘")
+
+
+def grid_row(col_widths, cells):
+    """
+    Print one bordered row with a vertical border between every column.
+
+    Each cell is padded (left-aligned) up to its column width, based on
+    its VISIBLE length -- so cells may already contain ANSI color codes
+    or be pre-padded/centered by the caller (e.g. for header rows).
+    """
+    sep = f"{Colors.CYAN}│{Colors.RESET}"
+    parts = []
+    for width, cell in zip(col_widths, cells):
+        pad = max(width - visible_len(cell), 0)
+        parts.append(cell + " " * pad)
+    print(sep + sep.join(parts) + sep)
+
+
+def grid_rule(col_widths):
+    print(grid_divider(col_widths))
 
 
 def status_display(status, width=None):
@@ -131,6 +181,48 @@ def status_display(status, width=None):
     text = status if width is None else f"{status:<{width}}"
     color = Colors.GREEN if status == "PASSED" else Colors.RED
     return f"{color}{text}{Colors.RESET}"
+
+
+def print_menu():
+    # Title banner: school name, full project title, and the section
+    # subtitle -- all three rows kept, one on top of the other.
+    print(box_top())
+    box_row(SCHOOL_NAME, align="center")
+    box_row(PROJECT_TITLE, align="center")
+    box_row(MENU_SUBTITLE, align="center")
+    print(box_bottom())
+    print()
+
+    # Menu options, shown as a fully bordered grid (rows + columns).
+    col_widths = [10, 39]
+    menu_items = [
+        ("[1]", "Add Student"),
+        ("[2]", "View All Students"),
+        ("[3]", "Search Student"),
+        ("[4]", "Show Highest Grade"),
+        ("[5]", "Reset All Data"),
+        ("[6]", "Exit"),
+    ]
+
+    print(grid_top(col_widths))
+    grid_row(
+        col_widths,
+        [
+            f"{Colors.YELLOW}{'OPTION':^10}{Colors.RESET}",
+            f"{Colors.YELLOW}{'MENU ACTION':^39}{Colors.RESET}",
+        ],
+    )
+    grid_rule(col_widths)
+
+    for index, (key, label) in enumerate(menu_items):
+        cell_key = f"{Colors.YELLOW}{key:^10}{Colors.RESET}"
+        cell_label = f" {label}"
+        grid_row(col_widths, [cell_key, cell_label])
+        if index != len(menu_items) - 1:
+            grid_rule(col_widths)
+
+    print(grid_bottom(col_widths))
+    print()
 
 
 # ------------------------------------------------------------------
@@ -214,10 +306,11 @@ def get_status(final_grade):
 
 
 # ------------------------------------------------------------------
-# Shared bordered "card" used by both Search and Highest Grade
+# Shared bordered grid "card" used by both Search and Highest Grade
 # ------------------------------------------------------------------
 def print_student_card(student):
-    label_width = 13
+    col_widths = [15, 34]
+
     rows = [
         ("Student ID", student["id"]),
         ("Name", student["name"]),
@@ -232,20 +325,22 @@ def print_student_card(student):
         ("Final Grade", f"{student['final_grade']:.2f}"),
     ]
 
-    print(box_top())
-    box_row(student["name"].upper(), align="center")
-    print(box_divider())
+    print(grid_top(col_widths))
+    grid_row(
+        col_widths,
+        [
+            f"{Colors.YELLOW}{'FIELD':^15}{Colors.RESET}",
+            f"{Colors.YELLOW}{'VALUE':^34}{Colors.RESET}",
+        ],
+    )
+    grid_rule(col_widths)
 
     for label, value in rows:
-        text = f" {label:<{label_width}}: {value}"
-        box_row(text)
+        grid_row(col_widths, [f" {label}", f" {value}"])
+        grid_rule(col_widths)
 
-    status_label = f" {'Status':<{label_width}}: "
-    visible = status_label + student["status"]
-    display = status_label + status_display(student["status"])
-    box_row(visible, display)
-
-    print(box_bottom())
+    grid_row(col_widths, [" Status", f" {status_display(student['status'])}"])
+    print(grid_bottom(col_widths))
 
 
 # ------------------------------------------------------------------
@@ -287,7 +382,8 @@ def add_student():
     }
     students.append(student)
 
-    print(f"\n{Colors.GREEN}Student successfully added!{Colors.RESET}")
+    print()
+    print_message_box("Student successfully added!", Colors.GREEN)
     pause()
 
 
@@ -296,41 +392,36 @@ def view_all_students():
     print_header("ALL STUDENTS")
 
     if len(students) == 0:
-        print("No students recorded yet.")
+        print_message_box("No students recorded yet.")
         pause()
         return
 
-    col_id, col_name, col_grade, col_status = 12, 18, 8, 8
-    top = "┌" + "─" * col_id + "┬" + "─" * col_name + "┬" + "─" * col_grade + "┬" + "─" * col_status + "┐"
-    mid = "├" + "─" * col_id + "┼" + "─" * col_name + "┼" + "─" * col_grade + "┼" + "─" * col_status + "┤"
-    bot = "└" + "─" * col_id + "┴" + "─" * col_name + "┴" + "─" * col_grade + "┴" + "─" * col_status + "┘"
-
     print(f"Total Students: {len(students)}\n")
-    print(f"{Colors.CYAN}{top}{Colors.RESET}")
-    print(
-        f"{Colors.CYAN}│{Colors.RESET}{'ID':<{col_id}}"
-        f"{Colors.CYAN}│{Colors.RESET}{'NAME':<{col_name}}"
-        f"{Colors.CYAN}│{Colors.RESET}{'GRADE':<{col_grade}}"
-        f"{Colors.CYAN}│{Colors.RESET}{'STATUS':<{col_status}}"
-        f"{Colors.CYAN}│{Colors.RESET}"
+
+    col_widths = [12, 19, 8, 8]
+    print(grid_top(col_widths))
+    grid_row(
+        col_widths,
+        [
+            f"{Colors.YELLOW}{'ID':^12}{Colors.RESET}",
+            f"{Colors.YELLOW}{'NAME':^19}{Colors.RESET}",
+            f"{Colors.YELLOW}{'GRADE':^8}{Colors.RESET}",
+            f"{Colors.YELLOW}{'STATUS':^8}{Colors.RESET}",
+        ],
     )
-    print(f"{Colors.CYAN}{mid}{Colors.RESET}")
+    grid_rule(col_widths)
 
-    for student in students:
-        id_cell = student["id"][:col_id].ljust(col_id)
-        name_cell = student["name"][:col_name].ljust(col_name)
-        grade_cell = f"{student['final_grade']:.2f}".ljust(col_grade)
-        status_cell = status_display(student["status"], col_status)
+    for index, student in enumerate(students):
+        id_cell = f" {student['id'][:col_widths[0] - 1]}"
+        name_cell = f" {student['name'][:col_widths[1] - 1]}"
+        grade_cell = f" {student['final_grade']:.2f}"
+        status_cell = f" {status_display(student['status'])}"
 
-        print(
-            f"{Colors.CYAN}│{Colors.RESET}{id_cell}"
-            f"{Colors.CYAN}│{Colors.RESET}{name_cell}"
-            f"{Colors.CYAN}│{Colors.RESET}{grade_cell}"
-            f"{Colors.CYAN}│{Colors.RESET}{status_cell}"
-            f"{Colors.CYAN}│{Colors.RESET}"
-        )
+        grid_row(col_widths, [id_cell, name_cell, grade_cell, status_cell])
+        if index != len(students) - 1:
+            grid_rule(col_widths)
 
-    print(f"{Colors.CYAN}{bot}{Colors.RESET}")
+    print(grid_bottom(col_widths))
     pause()
 
 
@@ -341,7 +432,8 @@ def search_student():
     student = find_student(student_id)
 
     if student is None:
-        print(f"\n{Colors.RED}Student not found.{Colors.RESET}")
+        print()
+        print_message_box("Student not found.", Colors.RED)
         pause()
         return
 
@@ -355,7 +447,7 @@ def show_highest_grade():
     print_header("HIGHEST FINAL GRADE")
 
     if len(students) == 0:
-        print("No students recorded yet.")
+        print_message_box("No students recorded yet.")
         pause()
         return
 
@@ -373,7 +465,7 @@ def reset_data():
     print_header("RESET ALL DATA")
 
     if len(students) == 0:
-        print("There is no data to reset.")
+        print_message_box("There is no data to reset.")
         pause()
         return
 
@@ -382,12 +474,13 @@ def reset_data():
         f"{len(students)} student record(s).{Colors.RESET}"
     )
     confirm = input("Are you sure you want to continue? (y/n): ").strip().lower()
+    print()
 
     if confirm == "y":
         students.clear()
-        print(f"\n{Colors.GREEN}All student data has been reset successfully!{Colors.RESET}")
+        print_message_box("All student data has been reset successfully!", Colors.GREEN)
     else:
-        print(f"\n{Colors.YELLOW}Reset cancelled. No data was changed.{Colors.RESET}")
+        print_message_box("Reset cancelled. No data was changed.", Colors.YELLOW)
 
     pause()
 
@@ -421,7 +514,8 @@ def main():
             )
             running = False
         else:
-            print(f"\n{Colors.RED}Invalid choice. Please select 1-6.{Colors.RESET}")
+            print()
+            print_message_box("Invalid choice. Please select 1-6.", Colors.RED)
             pause()
 
 
