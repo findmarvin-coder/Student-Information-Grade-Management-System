@@ -1,28 +1,3 @@
-"""
-Student Information & Grade Management System
-Metro Business College
-------------------------------------------------
-A console program that manages student records, computes quiz
-averages and final grades, and generates a class report.
-
-Features:
-- Full grid borders (rows AND columns) on every screen: the menu,
-  the student table, and the student detail card are all real
-  bordered grids, not just boxed headers.
-- Color-coded PASSED (green) / FAILED (red) status.
-- A Reset function that clears all student records (with confirmation).
-- Screen clearing + "Press Enter" pauses for a smoother, less cluttered flow.
-
-Grade Computation:
-    Quiz Average = (Quiz 1 + Quiz 2 + Quiz 3) / 3
-    Final Grade  = Quiz Average * 30%
-                  + Assignment   * 10%
-                  + Project      * 20%
-                  + Final Exam   * 40%
-
-Passing grade: 75 and above.
-"""
-
 import os
 import re
 
@@ -314,9 +289,41 @@ def get_status(final_grade):
 # ------------------------------------------------------------------
 # Shared bordered grid "card" used by both Search and Highest Grade
 # ------------------------------------------------------------------
-def print_student_card(student):
-    col_widths = [15, 34]
+def print_field_table(rows, closing_row=None):
+    """
+    Print a bordered FIELD | VALUE grid (rows AND columns).
 
+    `rows` is a list of (label, value) plain-text pairs.
+    `closing_row` is an optional extra (label, display_value) pair added
+    after all of `rows`, where `display_value` may already contain ANSI
+    color codes -- used for the colored PASSED/FAILED status row.
+    """
+    col_widths = [15, 34]
+    last_index = len(rows) - 1
+
+    print(grid_top(col_widths))
+    grid_row(
+        col_widths,
+        [
+            f"{Colors.YELLOW}{'FIELD':^15}{Colors.RESET}",
+            f"{Colors.YELLOW}{'VALUE':^34}{Colors.RESET}",
+        ],
+    )
+    grid_rule(col_widths)
+
+    for index, (label, value) in enumerate(rows):
+        grid_row(col_widths, [f" {label}", f" {value}"])
+        if index != last_index or closing_row is not None:
+            grid_rule(col_widths)
+
+    if closing_row is not None:
+        label, value = closing_row
+        grid_row(col_widths, [f" {label}", f" {value}"])
+
+    print(grid_bottom(col_widths))
+
+
+def print_student_card(student):
     rows = [
         ("Student ID", student["id"]),
         ("Name", student["name"]),
@@ -330,23 +337,7 @@ def print_student_card(student):
         ("Final Exam", f"{student['final_exam']:.2f}"),
         ("Final Grade", f"{student['final_grade']:.2f}"),
     ]
-
-    print(grid_top(col_widths))
-    grid_row(
-        col_widths,
-        [
-            f"{Colors.YELLOW}{'FIELD':^15}{Colors.RESET}",
-            f"{Colors.YELLOW}{'VALUE':^34}{Colors.RESET}",
-        ],
-    )
-    grid_rule(col_widths)
-
-    for label, value in rows:
-        grid_row(col_widths, [f" {label}", f" {value}"])
-        grid_rule(col_widths)
-
-    grid_row(col_widths, [" Status", f" {status_display(student['status'])}"])
-    print(grid_bottom(col_widths))
+    print_field_table(rows, closing_row=("Status", status_display(student["status"])))
 
 
 # ------------------------------------------------------------------
@@ -360,6 +351,12 @@ def add_student():
     name = get_non_empty_text("Student Name: ")
     course = get_non_empty_text("Course: ")
     print()
+    print_field_table([
+        ("Student ID", student_id),
+        ("Name", name),
+        ("Course", course),
+    ])
+    print()
 
     quiz1 = get_valid_grade("Quiz 1: ")
     quiz2 = get_valid_grade("Quiz 2: ")
@@ -367,6 +364,16 @@ def add_student():
     assignment = get_valid_grade("Assignment: ")
     project = get_valid_grade("Project: ")
     final_exam = get_valid_grade("Final Exam: ")
+    print()
+    print_field_table([
+        ("Quiz 1", f"{quiz1:.2f}"),
+        ("Quiz 2", f"{quiz2:.2f}"),
+        ("Quiz 3", f"{quiz3:.2f}"),
+        ("Assignment", f"{assignment:.2f}"),
+        ("Project", f"{project:.2f}"),
+        ("Final Exam", f"{final_exam:.2f}"),
+    ])
+    print()
 
     quiz_avg = calculate_quiz_average(quiz1, quiz2, quiz3)
     final_grade = calculate_final_grade(quiz_avg, assignment, project, final_exam)
@@ -388,7 +395,6 @@ def add_student():
     }
     students.append(student)
 
-    print()
     print_message_box("Student successfully added!", Colors.GREEN)
     pause()
 
