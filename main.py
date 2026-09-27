@@ -30,26 +30,24 @@ class Colors:
     GREEN = "\033[32m"
     YELLOW = "\033[33m"
     CYAN = "\033[36m"
+    WHITE = "\033[97m"
 
 
 ANSI_RE = re.compile(r"\033\[[0-9;]*m")
 
 
 def visible_len(text):
-    """Length of `text` as it appears on screen, ignoring ANSI color codes."""
     return len(ANSI_RE.sub("", text))
 
 
 # ------------------------------------------------------------------
-# Screen helpers
+# Clear Screen and Pause helper
 # ------------------------------------------------------------------
 def clear_screen():
-    """Clear the terminal so every section starts on a clean screen."""
     os.system("cls" if os.name == "nt" else "clear")
 
 
 def pause():
-    """Give the user a moment to read the result before the screen clears."""
     input(f"\n{Colors.CYAN}Press Enter to return to the menu...{Colors.RESET}")
 
 
@@ -57,7 +55,7 @@ def pause():
 # Single-column box helpers (headers, banners, message boxes)
 # ------------------------------------------------------------------
 def box_top(left="┌", right="┐"):
-    return f"{Colors.CYAN}{left}{'─' * INNER_WIDTH}{right}{Colors.RESET}"
+    return f"{Colors.WHITE}{left}{'─' * INNER_WIDTH}{right}{Colors.RESET}"
 
 
 def box_bottom():
@@ -65,14 +63,6 @@ def box_bottom():
 
 
 def box_row(visible_text="", display_text=None, align="left"):
-    """
-    Print one bordered single-column row.
-
-    `visible_text` must be the PLAIN text (no color codes) -- it is used
-    to work out how much padding is needed so the right border still
-    lines up. `display_text` is what actually gets printed and may
-    contain ANSI color codes; it defaults to `visible_text`.
-    """
     if display_text is None:
         display_text = visible_text
 
@@ -86,13 +76,10 @@ def box_row(visible_text="", display_text=None, align="left"):
     else:
         row = display_text + (" " * padding)
 
-    print(f"{Colors.CYAN}│{Colors.RESET}{row}{Colors.CYAN}│{Colors.RESET}")
+    print(f"{Colors.WHITE}│{Colors.RESET}{row}{Colors.WHITE}│{Colors.RESET}")
 
 
 def print_header(section_title):
-    """Print two separate bordered boxes: school name + project title on
-    top, then the section title below -- the same banner style used on
-    the main menu, kept consistent on every section."""
     print(box_top())
     box_row(SCHOOL_NAME, align="center")
     box_row(PROJECT_TITLE, align="center")
@@ -106,7 +93,6 @@ def print_header(section_title):
 
 
 def print_message_box(text, color=None):
-    """Print a short result / status message inside its own bordered box."""
     display_text = text if color is None else f"{color}{text}{Colors.RESET}"
     print(box_top())
     box_row(text, display_text, align="center")
@@ -118,7 +104,7 @@ def print_message_box(text, color=None):
 # ------------------------------------------------------------------
 def grid_border(col_widths, left, mid, right):
     parts = ["─" * w for w in col_widths]
-    return f"{Colors.CYAN}{left}{mid.join(parts)}{right}{Colors.RESET}"
+    return f"{Colors.WHITE}{left}{mid.join(parts)}{right}{Colors.RESET}"
 
 
 def grid_top(col_widths):
@@ -134,14 +120,7 @@ def grid_bottom(col_widths):
 
 
 def grid_row(col_widths, cells):
-    """
-    Print one bordered row with a vertical border between every column.
-
-    Each cell is padded (left-aligned) up to its column width, based on
-    its VISIBLE length -- so cells may already contain ANSI color codes
-    or be pre-padded/centered by the caller (e.g. for header rows).
-    """
-    sep = f"{Colors.CYAN}│{Colors.RESET}"
+    sep = f"{Colors.WHITE}│{Colors.RESET}"
     parts = []
     for width, cell in zip(col_widths, cells):
         pad = max(width - visible_len(cell), 0)
@@ -154,7 +133,6 @@ def grid_rule(col_widths):
 
 
 def status_display(status, width=None):
-    """Return PASSED/FAILED text wrapped in green/red, ready to print."""
     text = status if width is None else f"{status:<{width}}"
     color = Colors.GREEN if status == "PASSED" else Colors.RED
     return f"{color}{text}{Colors.RESET}"
@@ -210,7 +188,6 @@ def print_menu():
 # Validation helpers (error handling lives here)
 # ------------------------------------------------------------------
 def find_student(student_id):
-    """Linear search through the students list by Student ID."""
     for student in students:
         if student["id"].lower() == student_id.lower():
             return student
@@ -347,6 +324,11 @@ def add_student():
     clear_screen()
     print_header("ADD STUDENT")
 
+    print(box_top())
+    box_row("STUDENT DETAILS", align="center")
+    print(box_bottom())
+    print()
+
     student_id = get_unique_student_id()
     name = get_non_empty_text("Student Name: ")
     course = get_non_empty_text("Course: ")
@@ -356,6 +338,11 @@ def add_student():
         ("Name", name),
         ("Course", course),
     ])
+    print()
+
+    print(box_top())
+    box_row("GRADES", align="center")
+    print(box_bottom())
     print()
 
     quiz1 = get_valid_grade("Quiz 1: ")
