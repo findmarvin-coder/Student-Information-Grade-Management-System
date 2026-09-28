@@ -11,7 +11,7 @@ if os.name == "nt":
 # ------------------------------------------------------------------
 
 LAYOUT_MODE = "auto"       # "auto", "mobile", or "laptop"
-CENTER_ON_LAPTOP = False   # Set True to center boxes on wide laptop screens
+CENTER_ON_LAPTOP = True  # Set True to center boxes on wide laptop screens
 
 SCHOOL_NAME = "METRO BUSINESS COLLEGE"
 PROJECT_TITLE = "STUDENT INFORMATION & GRADE MANAGEMENT SYSTEM"
