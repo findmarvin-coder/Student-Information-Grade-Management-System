@@ -9,7 +9,7 @@ Features:
   the student table, and the student detail card are all real
   bordered grids, not just boxed headers.
 
-- Color-coded PASSED (green) / FAILED (red) status.
+-I use White Color for borders Yellow for Square Bracket,  PASSED (green) / FAILED (red) status.
 
 - A Reset function that clears all student records (with confirmation).
 
@@ -17,10 +17,10 @@ Features:
 
 Grade Computation:
     Quiz Average = (Quiz 1 + Quiz 2 + Quiz 3) / 3
-    Final Grade  = Quiz Average * 30%
-                  + Assignment   * 10%
-                  + Project      * 20%
-                  + Final Exam   * 40%
+    Final Grade  = Quiz Average  x 30%
+                  + Assignment   x 10%
+                  + Project      x 20%
+                  + Final Exam   x 40%
 
 Passing grade: 75 and above.
 
