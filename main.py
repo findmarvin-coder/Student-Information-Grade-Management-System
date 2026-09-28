@@ -9,6 +9,7 @@ if os.name == "nt":
 # ------------------------------------------------------------------
 # Configuration & Constants
 # ------------------------------------------------------------------
+
 LAYOUT_MODE = "auto"       # "auto", "mobile", or "laptop"
 CENTER_ON_LAPTOP = False   # Set True to center boxes on wide laptop screens
 
@@ -40,6 +41,8 @@ def visible_len(text):
 # ------------------------------------------------------------------
 # Responsive Layout Helpers
 # ------------------------------------------------------------------
+
+
 def is_mobile():
     if LAYOUT_MODE == "mobile":
         return True
@@ -98,6 +101,8 @@ def pause():
 # ------------------------------------------------------------------
 # Box & Border Helpers
 # ------------------------------------------------------------------
+
+
 def box_top(left="┌", right="┐"):
     _, inner_width = get_layout_widths()
     return f"{get_margin()}{Colors.WHITE}{left}{'─' * inner_width}{right}{Colors.RESET}"
@@ -173,6 +178,8 @@ def print_message_box(text, color=None):
 # ------------------------------------------------------------------
 # Grid / Table Helpers
 # ------------------------------------------------------------------
+
+
 def grid_border(col_widths, left, mid, right):
     parts = ["─" * w for w in col_widths]
     return f"{get_margin()}{Colors.WHITE}{left}{mid.join(parts)}{right}{Colors.RESET}"
@@ -264,6 +271,8 @@ def print_student_card(student):
 # ------------------------------------------------------------------
 # Menu Display (Strict 5-Option Format)
 # ------------------------------------------------------------------
+
+
 def print_menu():
     print(box_top())
     box_row(SCHOOL_NAME, align="center")
@@ -312,6 +321,8 @@ def print_menu():
 # ------------------------------------------------------------------
 # Validation Helpers
 # ------------------------------------------------------------------
+
+
 def find_student(student_id):
     for student in students:
         if student["id"].lower() == student_id.lower():
@@ -362,6 +373,8 @@ def get_non_empty_text(prompt):
 # ------------------------------------------------------------------
 # Grade Computation Functions
 # ------------------------------------------------------------------
+
+
 def calculate_quiz_average(quiz1, quiz2, quiz3):
     return round((quiz1 + quiz2 + quiz3) / 3, 2)
 
@@ -383,6 +396,8 @@ def get_status(final_grade):
 # ------------------------------------------------------------------
 # Primary Features
 # ------------------------------------------------------------------
+
+
 def add_student():
     clear_screen()
     print_header("ADD STUDENT")
@@ -529,6 +544,8 @@ def show_highest_grade():
 # ------------------------------------------------------------------
 # Main Loop
 # ------------------------------------------------------------------
+
+
 def main():
     while True:
         clear_screen()
