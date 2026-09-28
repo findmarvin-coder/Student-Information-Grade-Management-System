@@ -1,29 +1,30 @@
 import os
 import re
+import sys
 
 # Enable ANSI color rendering on older Windows terminals (cmd.exe).
-# Modern terminals (Linux, macOS, Windows Terminal, VS Code) already
-# support ANSI color codes, so this only matters on legacy cmd.exe.
 if os.name == "nt":
     os.system("")
-
 
 # ------------------------------------------------------------------
 # Configuration / constants
 # ------------------------------------------------------------------
+# Set to "auto" to detect automatically, or force "mobile" / "laptop"
+LAYOUT_MODE = "auto"
+
+# Center the box horizontally on laptop/PC screens (True/False).
+# Default is False so it does not create a huge blank space on the left.
+CENTER_ON_LAPTOP = False
+
 SCHOOL_NAME = "METRO BUSINESS COLLEGE"
 PROJECT_TITLE = "STUDENT INFORMATION & GRADE MANAGEMENT SYSTEM"
 MENU_SUBTITLE = "STUDENT GRADE MANAGEMENT"
 PASSING_GRADE = 75
 
-BOX_WIDTH = 52                  # total width of every box/grid (incl. borders)
-INNER_WIDTH = BOX_WIDTH - 2      # usable width inside a single-column box
-
 students = []  # list of dictionaries -- the in-memory student database
 
 
 class Colors:
-    """ANSI escape codes used to color the console output."""
     RESET = "\033[0m"
     BOLD = "\033[1m"
     RED = "\033[31m"
@@ -41,6 +42,62 @@ def visible_len(text):
 
 
 # ------------------------------------------------------------------
+# Responsive layout & margin detection
+# ------------------------------------------------------------------
+def is_mobile():
+    if LAYOUT_MODE == "mobile":
+        return True
+    if LAYOUT_MODE == "laptop":
+        return False
+
+    # Check for mobile/Android environment variables
+    if any(k in os.environ for k in ("ANDROID_ROOT", "ANDROID_DATA", "TERMUX_VERSION")):
+        return True
+    if hasattr(sys, "getandroidapilevel"):
+        return True
+
+    # Fallback: check terminal column width
+    try:
+        cols, _ = os.get_terminal_size()
+        if cols < 50:
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
+def get_layout_widths():
+    # Mobile box width is 32; Laptop box width is 52
+    if is_mobile():
+        return 32, 30
+    return 52, 50
+
+
+def get_margin():
+    """Calculates left padding to avoid excessive indentation."""
+    if is_mobile():
+        try:
+            term_w = os.get_terminal_size().columns
+            if 34 <= term_w <= 48:
+                return " " * max((term_w - 32) // 2, 0)
+        except Exception:
+            pass
+        return "  "  # subtle 2-space offset for clean mobile centering
+
+    # Laptop / PC: Keep left-aligned with 0 margin unless manually enabled
+    if CENTER_ON_LAPTOP:
+        try:
+            term_w = os.get_terminal_size().columns
+            if term_w > 52:
+                return " " * max((term_w - 52) // 2, 0)
+        except Exception:
+            pass
+
+    return ""
+
+
+# ------------------------------------------------------------------
 # Clear Screen and Pause helper
 # ------------------------------------------------------------------
 def clear_screen():
@@ -48,27 +105,53 @@ def clear_screen():
 
 
 def pause():
-    input(f"\n{Colors.CYAN}Press Enter to return to the menu...{Colors.RESET}")
+    prompt = "Press Enter to continue..." if is_mobile() else "Press Enter to return to the menu..."
+    input(f"\n{get_margin()}{Colors.CYAN}{prompt}{Colors.RESET}")
 
 
 # ------------------------------------------------------------------
 # Single-column box helpers (headers, banners, message boxes)
 # ------------------------------------------------------------------
 def box_top(left="┌", right="┐"):
-    return f"{Colors.WHITE}{left}{'─' * INNER_WIDTH}{right}{Colors.RESET}"
+    _, inner_width = get_layout_widths()
+    return f"{get_margin()}{Colors.WHITE}{left}{'─' * inner_width}{right}{Colors.RESET}"
 
 
 def box_bottom():
     return box_top(left="└", right="┘")
 
 
+def box_divider(left="├", right="┤"):
+    _, inner_width = get_layout_widths()
+    return f"{get_margin()}{Colors.WHITE}{left}{'─' * inner_width}{right}{Colors.RESET}"
+
+
 def box_row(visible_text="", display_text=None, align="left"):
+    _, inner_width = get_layout_widths()
     if display_text is None:
         display_text = visible_text
 
-    visible_text = visible_text[:INNER_WIDTH]
-    padding = max(INNER_WIDTH - len(visible_text), 0)
+    v_len = visible_len(visible_text)
+    if v_len > inner_width:
+        words = visible_text.split()
+        lines = []
+        curr = ""
+        for w in words:
+            if not curr:
+                curr = w
+            elif len(curr) + 1 + len(w) <= inner_width:
+                curr += " " + w
+            else:
+                lines.append(curr)
+                curr = w
+        if curr:
+            lines.append(curr)
 
+        for line in lines:
+            box_row(line, align=align)
+        return
+
+    padding = max(inner_width - v_len, 0)
     if align == "center":
         left_pad = padding // 2
         right_pad = padding - left_pad
@@ -76,12 +159,13 @@ def box_row(visible_text="", display_text=None, align="left"):
     else:
         row = display_text + (" " * padding)
 
-    print(f"{Colors.WHITE}│{Colors.RESET}{row}{Colors.WHITE}│{Colors.RESET}")
+    print(f"{get_margin()}{Colors.WHITE}│{Colors.RESET}{row}{Colors.WHITE}│{Colors.RESET}")
 
 
 def print_header(section_title):
     print(box_top())
     box_row(SCHOOL_NAME, align="center")
+    print(box_divider())
     box_row(PROJECT_TITLE, align="center")
     print(box_bottom())
     print()
@@ -93,9 +177,28 @@ def print_header(section_title):
 
 
 def print_message_box(text, color=None):
-    display_text = text if color is None else f"{color}{text}{Colors.RESET}"
+    _, inner_width = get_layout_widths()
     print(box_top())
-    box_row(text, display_text, align="center")
+    if len(text) > inner_width:
+        words = text.split()
+        curr = ""
+        lines = []
+        for w in words:
+            if not curr:
+                curr = w
+            elif len(curr) + 1 + len(w) <= inner_width:
+                curr += " " + w
+            else:
+                lines.append(curr)
+                curr = w
+        if curr:
+            lines.append(curr)
+        for line in lines:
+            disp = line if color is None else f"{color}{line}{Colors.RESET}"
+            box_row(line, disp, align="center")
+    else:
+        disp = text if color is None else f"{color}{text}{Colors.RESET}"
+        box_row(text, disp, align="center")
     print(box_bottom())
 
 
@@ -104,7 +207,7 @@ def print_message_box(text, color=None):
 # ------------------------------------------------------------------
 def grid_border(col_widths, left, mid, right):
     parts = ["─" * w for w in col_widths]
-    return f"{Colors.WHITE}{left}{mid.join(parts)}{right}{Colors.RESET}"
+    return f"{get_margin()}{Colors.WHITE}{left}{mid.join(parts)}{right}{Colors.RESET}"
 
 
 def grid_top(col_widths):
@@ -123,9 +226,15 @@ def grid_row(col_widths, cells):
     sep = f"{Colors.WHITE}│{Colors.RESET}"
     parts = []
     for width, cell in zip(col_widths, cells):
-        pad = max(width - visible_len(cell), 0)
+        v_len = visible_len(cell)
+        if v_len > width:
+            plain = ANSI_RE.sub("", cell)
+            if plain == cell:
+                cell = cell[:width]
+                v_len = len(cell)
+        pad = max(width - v_len, 0)
         parts.append(cell + " " * pad)
-    print(sep + sep.join(parts) + sep)
+    print(get_margin() + sep + sep.join(parts) + sep)
 
 
 def grid_rule(col_widths):
@@ -134,26 +243,37 @@ def grid_rule(col_widths):
 
 def status_display(status, width=None):
     text = status if width is None else f"{status:<{width}}"
-    color = Colors.GREEN if status == "PASSED" else Colors.RED
+    color = Colors.GREEN if "PASS" in status else Colors.RED
     return f"{color}{text}{Colors.RESET}"
 
 
 def print_menu():
-    # First banner: school name + full project title.
+    # First banner: school name + divider + project title
     print(box_top())
     box_row(SCHOOL_NAME, align="center")
+    print(box_divider())
     box_row(PROJECT_TITLE, align="center")
     print(box_bottom())
     print()
 
-    # Second banner: its own bordered box for the subtitle.
+    # Second banner: subtitle
     print(box_top())
     box_row(MENU_SUBTITLE, align="center")
     print(box_bottom())
     print()
 
-    # Menu options, shown as a fully bordered grid (rows + columns).
-    col_widths = [10, 39]
+    # Menu options grid
+    if is_mobile():
+        col_widths = [6, 23]
+        header_opt = f"{Colors.YELLOW}{'OPT':^6}{Colors.RESET}"
+        header_action = f"{Colors.YELLOW}{'MENU ACTION':^23}{Colors.RESET}"
+        key_fmt = lambda k: f"{Colors.YELLOW}{k:^6}{Colors.RESET}"
+    else:
+        col_widths = [10, 39]
+        header_opt = f"{Colors.YELLOW}{'OPTION':^10}{Colors.RESET}"
+        header_action = f"{Colors.YELLOW}{'MENU ACTION':^39}{Colors.RESET}"
+        key_fmt = lambda k: f"{Colors.YELLOW}{k:^10}{Colors.RESET}"
+
     menu_items = [
         ("[1]", "Add Student"),
         ("[2]", "View All Students"),
@@ -164,17 +284,11 @@ def print_menu():
     ]
 
     print(grid_top(col_widths))
-    grid_row(
-        col_widths,
-        [
-            f"{Colors.YELLOW}{'OPTION':^10}{Colors.RESET}",
-            f"{Colors.YELLOW}{'MENU ACTION':^39}{Colors.RESET}",
-        ],
-    )
+    grid_row(col_widths, [header_opt, header_action])
     grid_rule(col_widths)
 
     for index, (key, label) in enumerate(menu_items):
-        cell_key = f"{Colors.YELLOW}{key:^10}{Colors.RESET}"
+        cell_key = key_fmt(key)
         cell_label = f" {label}"
         grid_row(col_widths, [cell_key, cell_label])
         if index != len(menu_items) - 1:
@@ -185,7 +299,7 @@ def print_menu():
 
 
 # ------------------------------------------------------------------
-# Validation helpers (error handling lives here)
+# Validation helpers
 # ------------------------------------------------------------------
 def find_student(student_id):
     for student in students:
@@ -195,47 +309,50 @@ def find_student(student_id):
 
 
 def get_unique_student_id():
+    margin = get_margin()
     while True:
-        student_id = input("Student ID: ").strip()
+        student_id = input(f"{margin}Student ID: ").strip()
 
         if student_id == "":
-            print(f"\n{Colors.RED}ERROR:{Colors.RESET}")
-            print("Student ID cannot be empty.\n")
+            print(f"\n{margin}{Colors.RED}ERROR:{Colors.RESET}")
+            print(f"{margin}Student ID cannot be empty.\n")
             continue
 
         if find_student(student_id) is not None:
-            print(f"\n{Colors.RED}ERROR:{Colors.RESET}")
-            print("Student ID already exists.")
-            print("Please enter another ID.\n")
+            print(f"\n{margin}{Colors.RED}ERROR:{Colors.RESET}")
+            print(f"{margin}Student ID already exists.")
+            print(f"{margin}Please enter another ID.\n")
             continue
 
         return student_id
 
 
 def get_valid_grade(prompt):
+    margin = get_margin()
     while True:
-        raw_value = input(prompt)
+        raw_value = input(f"{margin}{prompt}")
         try:
             grade = float(raw_value)
         except ValueError:
-            print(f"\n{Colors.RED}ERROR:{Colors.RESET}")
-            print("Please enter a valid number.\n")
+            print(f"\n{margin}{Colors.RED}ERROR:{Colors.RESET}")
+            print(f"{margin}Please enter a valid number.\n")
             continue
 
         if grade < 0 or grade > 100:
-            print(f"\n{Colors.RED}ERROR:{Colors.RESET}")
-            print("Grade must be between 0 and 100.\n")
+            print(f"\n{margin}{Colors.RED}ERROR:{Colors.RESET}")
+            print(f"{margin}Grade must be between 0 and 100.\n")
             continue
 
         return grade
 
 
 def get_non_empty_text(prompt):
+    margin = get_margin()
     while True:
-        value = input(prompt).strip()
+        value = input(f"{margin}{prompt}").strip()
         if value == "":
-            print(f"\n{Colors.RED}ERROR:{Colors.RESET}")
-            print("This field cannot be empty.\n")
+            print(f"\n{margin}{Colors.RED}ERROR:{Colors.RESET}")
+            print(f"{margin}This field cannot be empty.\n")
             continue
         return value
 
@@ -264,32 +381,30 @@ def get_status(final_grade):
 
 
 # ------------------------------------------------------------------
-# Shared bordered grid "card" used by both Search and Highest Grade
+# Shared bordered grid "card"
 # ------------------------------------------------------------------
 def print_field_table(rows, closing_row=None):
-    """
-    Print a bordered FIELD | VALUE grid (rows AND columns).
+    if is_mobile():
+        col_widths = [12, 17]
+        h_field = f"{Colors.YELLOW}{'FIELD':^12}{Colors.RESET}"
+        h_value = f"{Colors.YELLOW}{'VALUE':^17}{Colors.RESET}"
+    else:
+        col_widths = [15, 34]
+        h_field = f"{Colors.YELLOW}{'FIELD':^15}{Colors.RESET}"
+        h_value = f"{Colors.YELLOW}{'VALUE':^34}{Colors.RESET}"
 
-    `rows` is a list of (label, value) plain-text pairs.
-    `closing_row` is an optional extra (label, display_value) pair added
-    after all of `rows`, where `display_value` may already contain ANSI
-    color codes -- used for the colored PASSED/FAILED status row.
-    """
-    col_widths = [15, 34]
     last_index = len(rows) - 1
 
     print(grid_top(col_widths))
-    grid_row(
-        col_widths,
-        [
-            f"{Colors.YELLOW}{'FIELD':^15}{Colors.RESET}",
-            f"{Colors.YELLOW}{'VALUE':^34}{Colors.RESET}",
-        ],
-    )
+    grid_row(col_widths, [h_field, h_value])
     grid_rule(col_widths)
 
     for index, (label, value) in enumerate(rows):
-        grid_row(col_widths, [f" {label}", f" {value}"])
+        val_str = str(value)
+        max_v = col_widths[1] - 2
+        if len(val_str) > max_v:
+            val_str = val_str[:max_v - 1] + "…"
+        grid_row(col_widths, [f" {label}", f" {val_str}"])
         if index != last_index or closing_row is not None:
             grid_rule(col_widths)
 
@@ -301,6 +416,7 @@ def print_field_table(rows, closing_row=None):
 
 
 def print_student_card(student):
+    avg_label = "Quiz Avg" if is_mobile() else "Quiz Average"
     rows = [
         ("Student ID", student["id"]),
         ("Name", student["name"]),
@@ -308,7 +424,7 @@ def print_student_card(student):
         ("Quiz 1", f"{student['quiz1']:.2f}"),
         ("Quiz 2", f"{student['quiz2']:.2f}"),
         ("Quiz 3", f"{student['quiz3']:.2f}"),
-        ("Quiz Average", f"{student['quiz_avg']:.2f}"),
+        (avg_label, f"{student['quiz_avg']:.2f}"),
         ("Assignment", f"{student['assignment']:.2f}"),
         ("Project", f"{student['project']:.2f}"),
         ("Final Exam", f"{student['final_exam']:.2f}"),
@@ -395,26 +511,41 @@ def view_all_students():
         pause()
         return
 
-    print(f"Total Students: {len(students)}\n")
+    print(f"{get_margin()}Total Students: {len(students)}\n")
 
-    col_widths = [12, 19, 8, 8]
-    print(grid_top(col_widths))
-    grid_row(
-        col_widths,
-        [
+    if is_mobile():
+        col_widths = [6, 8, 6, 7]
+        headers = [
+            f"{Colors.YELLOW}{'ID':^6}{Colors.RESET}",
+            f"{Colors.YELLOW}{'NAME':^8}{Colors.RESET}",
+            f"{Colors.YELLOW}{'GRD':^6}{Colors.RESET}",
+            f"{Colors.YELLOW}{'STAT':^7}{Colors.RESET}",
+        ]
+    else:
+        col_widths = [12, 19, 8, 8]
+        headers = [
             f"{Colors.YELLOW}{'ID':^12}{Colors.RESET}",
             f"{Colors.YELLOW}{'NAME':^19}{Colors.RESET}",
             f"{Colors.YELLOW}{'GRADE':^8}{Colors.RESET}",
             f"{Colors.YELLOW}{'STATUS':^8}{Colors.RESET}",
-        ],
-    )
+        ]
+
+    print(grid_top(col_widths))
+    grid_row(col_widths, headers)
     grid_rule(col_widths)
 
     for index, student in enumerate(students):
-        id_cell = f" {student['id'][:col_widths[0] - 1]}"
-        name_cell = f" {student['name'][:col_widths[1] - 1]}"
-        grade_cell = f" {student['final_grade']:.2f}"
-        status_cell = f" {status_display(student['status'])}"
+        if is_mobile():
+            id_cell = f" {student['id'][:col_widths[0] - 1]}"
+            name_cell = f" {student['name'][:col_widths[1] - 1]}"
+            grade_cell = f"{student['final_grade']:^6.1f}"
+            short_stat = "PASS" if student["status"] == "PASSED" else "FAIL"
+            status_cell = f" {status_display(short_stat)}"
+        else:
+            id_cell = f" {student['id'][:col_widths[0] - 1]}"
+            name_cell = f" {student['name'][:col_widths[1] - 1]}"
+            grade_cell = f" {student['final_grade']:.2f}"
+            status_cell = f" {status_display(student['status'])}"
 
         grid_row(col_widths, [id_cell, name_cell, grade_cell, status_cell])
         if index != len(students) - 1:
@@ -427,7 +558,7 @@ def view_all_students():
 def search_student():
     clear_screen()
     print_header("SEARCH STUDENT")
-    student_id = input("Enter Student ID to search: ").strip()
+    student_id = input(f"{get_margin()}Enter Student ID to search: ").strip()
     student = find_student(student_id)
 
     if student is None:
@@ -468,11 +599,12 @@ def reset_data():
         pause()
         return
 
+    margin = get_margin()
     print(
-        f"{Colors.YELLOW}Warning: this will permanently delete all "
+        f"{margin}{Colors.YELLOW}Warning: this will permanently delete all "
         f"{len(students)} student record(s).{Colors.RESET}"
     )
-    confirm = input("Are you sure you want to continue? (y/n): ").strip().lower()
+    confirm = input(f"{margin}Are you sure you want to continue? (y/n): ").strip().lower()
     print()
 
     if confirm == "y":
@@ -493,7 +625,7 @@ def main():
     while running:
         clear_screen()
         print_menu()
-        choice = input(f"{Colors.BOLD}Enter choice: {Colors.RESET}").strip()
+        choice = input(f"{get_margin()}{Colors.BOLD}Enter choice: {Colors.RESET}").strip()
 
         if choice == "1":
             add_student()
@@ -508,7 +640,7 @@ def main():
         elif choice == "6":
             clear_screen()
             print(
-                f"{Colors.GREEN}Thank you for using the {SCHOOL_NAME} "
+                f"{get_margin()}{Colors.GREEN}Thank you for using the {SCHOOL_NAME} "
                 f"Grade Management System. Goodbye!{Colors.RESET}"
             )
             running = False
