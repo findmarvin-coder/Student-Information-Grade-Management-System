@@ -2,26 +2,22 @@ import os
 import re
 import sys
 
-# Enable ANSI color rendering on older Windows terminals (cmd.exe).
+# Enable ANSI color rendering on Windows terminals
 if os.name == "nt":
     os.system("")
 
 # ------------------------------------------------------------------
-# Configuration / constants
+# Configuration & Constants
 # ------------------------------------------------------------------
-# Set to "auto" to detect automatically, or force "mobile" / "laptop"
-LAYOUT_MODE = "auto"
-
-# Center the box horizontally on laptop/PC screens (True/False).
-# Kept False so it aligns cleanly to the left without large spacing.
-CENTER_ON_LAPTOP = False
+LAYOUT_MODE = "auto"       # "auto", "mobile", or "laptop"
+CENTER_ON_LAPTOP = False   # Set True to center boxes on wide laptop screens
 
 SCHOOL_NAME = "METRO BUSINESS COLLEGE"
 PROJECT_TITLE = "STUDENT INFORMATION & GRADE MANAGEMENT SYSTEM"
 MENU_SUBTITLE = "STUDENT GRADE MANAGEMENT"
 PASSING_GRADE = 75
 
-students = []  # in-memory student database
+students = []  # In-memory database
 
 
 class Colors:
@@ -42,7 +38,7 @@ def visible_len(text):
 
 
 # ------------------------------------------------------------------
-# Responsive layout & margin detection
+# Responsive Layout Helpers
 # ------------------------------------------------------------------
 def is_mobile():
     if LAYOUT_MODE == "mobile":
@@ -50,13 +46,11 @@ def is_mobile():
     if LAYOUT_MODE == "laptop":
         return False
 
-    # Check for Android / mobile terminal environments
     if any(k in os.environ for k in ("ANDROID_ROOT", "ANDROID_DATA", "TERMUX_VERSION")):
         return True
     if hasattr(sys, "getandroidapilevel"):
         return True
 
-    # Check terminal width
     try:
         cols, _ = os.get_terminal_size()
         if cols < 50:
@@ -68,14 +62,10 @@ def is_mobile():
 
 
 def get_layout_widths():
-    # Mobile width: 32 (inner: 30) | Laptop width: 52 (inner: 50)
-    if is_mobile():
-        return 32, 30
-    return 52, 50
+    return (32, 30) if is_mobile() else (52, 50)
 
 
 def get_margin():
-    """Calculates left padding to avoid excessive indentation."""
     if is_mobile():
         try:
             term_w = os.get_terminal_size().columns
@@ -96,9 +86,6 @@ def get_margin():
     return ""
 
 
-# ------------------------------------------------------------------
-# Screen and Pause helpers
-# ------------------------------------------------------------------
 def clear_screen():
     os.system("cls" if os.name == "nt" else "clear")
 
@@ -109,7 +96,7 @@ def pause():
 
 
 # ------------------------------------------------------------------
-# Single-column box helpers
+# Box & Border Helpers
 # ------------------------------------------------------------------
 def box_top(left="┌", right="┐"):
     _, inner_width = get_layout_widths()
@@ -130,6 +117,7 @@ def box_row(visible_text="", display_text=None, align="left"):
     if display_text is None:
         display_text = visible_text
 
+    # Auto-wrap words exceeding container width
     v_len = visible_len(visible_text)
     if v_len > inner_width:
         words = visible_text.split()
@@ -176,33 +164,14 @@ def print_header(section_title):
 
 
 def print_message_box(text, color=None):
-    _, inner_width = get_layout_widths()
+    disp = text if color is None else f"{color}{text}{Colors.RESET}"
     print(box_top())
-    if len(text) > inner_width:
-        words = text.split()
-        curr = ""
-        lines = []
-        for w in words:
-            if not curr:
-                curr = w
-            elif len(curr) + 1 + len(w) <= inner_width:
-                curr += " " + w
-            else:
-                lines.append(curr)
-                curr = w
-        if curr:
-            lines.append(curr)
-        for line in lines:
-            disp = line if color is None else f"{color}{line}{Colors.RESET}"
-            box_row(line, disp, align="center")
-    else:
-        disp = text if color is None else f"{color}{text}{Colors.RESET}"
-        box_row(text, disp, align="center")
+    box_row(text, disp, align="center")
     print(box_bottom())
 
 
 # ------------------------------------------------------------------
-# Multi-column grid helpers
+# Grid / Table Helpers
 # ------------------------------------------------------------------
 def grid_border(col_widths, left, mid, right):
     parts = ["─" * w for w in col_widths]
@@ -236,16 +205,65 @@ def grid_row(col_widths, cells):
     print(get_margin() + sep + sep.join(parts) + sep)
 
 
-def grid_rule(col_widths):
-    print(grid_divider(col_widths))
-
-
 def status_display(status, width=None):
     text = status if width is None else f"{status:<{width}}"
     color = Colors.GREEN if "PASS" in status else Colors.RED
     return f"{color}{text}{Colors.RESET}"
 
 
+def print_field_table(rows, closing_row=None):
+    if is_mobile():
+        col_widths = [12, 17]
+        h_field = f"{Colors.YELLOW}{'FIELD':^12}{Colors.RESET}"
+        h_value = f"{Colors.YELLOW}{'VALUE':^17}{Colors.RESET}"
+    else:
+        col_widths = [15, 34]
+        h_field = f"{Colors.YELLOW}{'FIELD':^15}{Colors.RESET}"
+        h_value = f"{Colors.YELLOW}{'VALUE':^34}{Colors.RESET}"
+
+    last_index = len(rows) - 1
+
+    print(grid_top(col_widths))
+    grid_row(col_widths, [h_field, h_value])
+    print(grid_divider(col_widths))
+
+    for index, (label, value) in enumerate(rows):
+        val_str = str(value)
+        max_v = col_widths[1] - 2
+        if len(val_str) > max_v:
+            val_str = val_str[:max_v - 1] + "…"
+        grid_row(col_widths, [f" {label}", f" {val_str}"])
+        if index != last_index or closing_row is not None:
+            print(grid_divider(col_widths))
+
+    if closing_row is not None:
+        label, value = closing_row
+        grid_row(col_widths, [f" {label}", f" {value}"])
+
+    print(grid_bottom(col_widths))
+
+
+def print_student_card(student):
+    avg_label = "Quiz Avg" if is_mobile() else "Quiz Average"
+    rows = [
+        ("Student ID", student["id"]),
+        ("Name", student["name"]),
+        ("Course", student["course"]),
+        ("Quiz 1", f"{student['quiz1']:.2f}"),
+        ("Quiz 2", f"{student['quiz2']:.2f}"),
+        ("Quiz 3", f"{student['quiz3']:.2f}"),
+        (avg_label, f"{student['quiz_avg']:.2f}"),
+        ("Assignment", f"{student['assignment']:.2f}"),
+        ("Project", f"{student['project']:.2f}"),
+        ("Final Exam", f"{student['final_exam']:.2f}"),
+        ("Final Grade", f"{student['final_grade']:.2f}"),
+    ]
+    print_field_table(rows, closing_row=("Status", status_display(student["status"])))
+
+
+# ------------------------------------------------------------------
+# Menu Display (Strict 5-Option Format)
+# ------------------------------------------------------------------
 def print_menu():
     print(box_top())
     box_row(SCHOOL_NAME, align="center")
@@ -275,27 +293,24 @@ def print_menu():
         ("[2]", "View All Students"),
         ("[3]", "Search Student"),
         ("[4]", "Show Highest Grade"),
-        ("[5]", "Reset All Data"),
-        ("[6]", "Exit"),
+        ("[5]", "Exit"),
     ]
 
     print(grid_top(col_widths))
     grid_row(col_widths, [header_opt, header_action])
-    grid_rule(col_widths)
+    print(grid_divider(col_widths))
 
     for index, (key, label) in enumerate(menu_items):
-        cell_key = key_fmt(key)
-        cell_label = f" {label}"
-        grid_row(col_widths, [cell_key, cell_label])
+        grid_row(col_widths, [key_fmt(key), f" {label}"])
         if index != len(menu_items) - 1:
-            grid_rule(col_widths)
+            print(grid_divider(col_widths))
 
     print(grid_bottom(col_widths))
     print()
 
 
 # ------------------------------------------------------------------
-# Validation helpers
+# Validation Helpers
 # ------------------------------------------------------------------
 def find_student(student_id):
     for student in students:
@@ -308,18 +323,12 @@ def get_unique_student_id():
     margin = get_margin()
     while True:
         student_id = input(f"{margin}Student ID: ").strip()
-
         if student_id == "":
-            print(f"\n{margin}{Colors.RED}ERROR:{Colors.RESET}")
-            print(f"{margin}Student ID cannot be empty.\n")
+            print(f"\n{margin}{Colors.RED}ERROR: Student ID cannot be empty.{Colors.RESET}\n")
             continue
-
         if find_student(student_id) is not None:
-            print(f"\n{margin}{Colors.RED}ERROR:{Colors.RESET}")
-            print(f"{margin}Student ID already exists.")
-            print(f"{margin}Please enter another ID.\n")
+            print(f"\n{margin}{Colors.RED}ERROR: Student ID already exists.{Colors.RESET}\n")
             continue
-
         return student_id
 
 
@@ -330,13 +339,11 @@ def get_valid_grade(prompt):
         try:
             grade = float(raw_value)
         except ValueError:
-            print(f"\n{margin}{Colors.RED}ERROR:{Colors.RESET}")
-            print(f"{margin}Please enter a valid number.\n")
+            print(f"\n{margin}{Colors.RED}ERROR: Please enter a valid number.{Colors.RESET}\n")
             continue
 
-        if grade < 0 or grade > 100:
-            print(f"\n{margin}{Colors.RED}ERROR:{Colors.RESET}")
-            print(f"{margin}Grade must be between 0 and 100.\n")
+        if not (0 <= grade <= 100):
+            print(f"\n{margin}{Colors.RED}ERROR: Grade must be between 0 and 100.{Colors.RESET}\n")
             continue
 
         return grade
@@ -347,14 +354,13 @@ def get_non_empty_text(prompt):
     while True:
         value = input(f"{margin}{prompt}").strip()
         if value == "":
-            print(f"\n{margin}{Colors.RED}ERROR:{Colors.RESET}")
-            print(f"{margin}This field cannot be empty.\n")
+            print(f"\n{margin}{Colors.RED}ERROR: This field cannot be empty.{Colors.RESET}\n")
             continue
         return value
 
 
 # ------------------------------------------------------------------
-# Grade computation functions
+# Grade Computation Functions
 # ------------------------------------------------------------------
 def calculate_quiz_average(quiz1, quiz2, quiz3):
     return round((quiz1 + quiz2 + quiz3) / 3, 2)
@@ -371,67 +377,11 @@ def calculate_final_grade(quiz_avg, assignment, project, final_exam):
 
 
 def get_status(final_grade):
-    if final_grade >= PASSING_GRADE:
-        return "PASSED"
-    else:
-        return "FAILED"
+    return "PASSED" if final_grade >= PASSING_GRADE else "FAILED"
 
 
 # ------------------------------------------------------------------
-# Shared bordered grid "card"
-# ------------------------------------------------------------------
-def print_field_table(rows, closing_row=None):
-    if is_mobile():
-        col_widths = [12, 17]
-        h_field = f"{Colors.YELLOW}{'FIELD':^12}{Colors.RESET}"
-        h_value = f"{Colors.YELLOW}{'VALUE':^17}{Colors.RESET}"
-    else:
-        col_widths = [15, 34]
-        h_field = f"{Colors.YELLOW}{'FIELD':^15}{Colors.RESET}"
-        h_value = f"{Colors.YELLOW}{'VALUE':^34}{Colors.RESET}"
-
-    last_index = len(rows) - 1
-
-    print(grid_top(col_widths))
-    grid_row(col_widths, [h_field, h_value])
-    grid_rule(col_widths)
-
-    for index, (label, value) in enumerate(rows):
-        val_str = str(value)
-        max_v = col_widths[1] - 2
-        if len(val_str) > max_v:
-            val_str = val_str[:max_v - 1] + "…"
-        grid_row(col_widths, [f" {label}", f" {val_str}"])
-        if index != last_index or closing_row is not None:
-            grid_rule(col_widths)
-
-    if closing_row is not None:
-        label, value = closing_row
-        grid_row(col_widths, [f" {label}", f" {value}"])
-
-    print(grid_bottom(col_widths))
-
-
-def print_student_card(student):
-    avg_label = "Quiz Avg" if is_mobile() else "Quiz Average"
-    rows = [
-        ("Student ID", student["id"]),
-        ("Name", student["name"]),
-        ("Course", student["course"]),
-        ("Quiz 1", f"{student['quiz1']:.2f}"),
-        ("Quiz 2", f"{student['quiz2']:.2f}"),
-        ("Quiz 3", f"{student['quiz3']:.2f}"),
-        (avg_label, f"{student['quiz_avg']:.2f}"),
-        ("Assignment", f"{student['assignment']:.2f}"),
-        ("Project", f"{student['project']:.2f}"),
-        ("Final Exam", f"{student['final_exam']:.2f}"),
-        ("Final Grade", f"{student['final_grade']:.2f}"),
-    ]
-    print_field_table(rows, closing_row=("Status", status_display(student["status"])))
-
-
-# ------------------------------------------------------------------
-# Core menu actions
+# Primary Features
 # ------------------------------------------------------------------
 def add_student():
     clear_screen()
@@ -445,14 +395,8 @@ def add_student():
     student_id = get_unique_student_id()
     name = get_non_empty_text("Student Name: ")
     course = get_non_empty_text("Course: ")
-    print()
-    print_field_table([
-        ("Student ID", student_id),
-        ("Name", name),
-        ("Course", course),
-    ])
 
-    # Clear screen after details are confirmed
+    # Advance to grades screen
     input(f"\n{get_margin()}{Colors.CYAN}Press Enter to proceed to grades...{Colors.RESET}")
     clear_screen()
     print_header("ADD STUDENT")
@@ -469,7 +413,6 @@ def add_student():
     project = get_valid_grade("Project: ")
     final_exam = get_valid_grade("Final Exam: ")
 
-    # Compute Quiz Average, Final Grade, and Passing Status
     quiz_avg = calculate_quiz_average(quiz1, quiz2, quiz3)
     final_grade = calculate_final_grade(quiz_avg, assignment, project, final_exam)
     status = get_status(final_grade)
@@ -490,7 +433,7 @@ def add_student():
     }
     students.append(student)
 
-    # Clear screen and display full computed summary
+    # Show calculated card
     clear_screen()
     print_header("STUDENT SUMMARY")
     print_student_card(student)
@@ -503,7 +446,7 @@ def view_all_students():
     clear_screen()
     print_header("ALL STUDENTS")
 
-    if len(students) == 0:
+    if not students:
         print_message_box("No students recorded yet.")
         pause()
         return
@@ -529,7 +472,7 @@ def view_all_students():
 
     print(grid_top(col_widths))
     grid_row(col_widths, headers)
-    grid_rule(col_widths)
+    print(grid_divider(col_widths))
 
     for index, student in enumerate(students):
         if is_mobile():
@@ -546,7 +489,7 @@ def view_all_students():
 
         grid_row(col_widths, [id_cell, name_cell, grade_cell, status_cell])
         if index != len(students) - 1:
-            grid_rule(col_widths)
+            print(grid_divider(col_widths))
 
     print(grid_bottom(col_widths))
     pause()
@@ -573,53 +516,21 @@ def show_highest_grade():
     clear_screen()
     print_header("HIGHEST FINAL GRADE")
 
-    if len(students) == 0:
+    if not students:
         print_message_box("No students recorded yet.")
         pause()
         return
 
-    top_student = students[0]
-    for student in students:
-        if student["final_grade"] > top_student["final_grade"]:
-            top_student = student
-
+    top_student = max(students, key=lambda s: s["final_grade"])
     print_student_card(top_student)
     pause()
 
 
-def reset_data():
-    clear_screen()
-    print_header("RESET ALL DATA")
-
-    if len(students) == 0:
-        print_message_box("There is no data to reset.")
-        pause()
-        return
-
-    margin = get_margin()
-    print(
-        f"{margin}{Colors.YELLOW}Warning: this will permanently delete all "
-        f"{len(students)} student record(s).{Colors.RESET}"
-    )
-    confirm = input(f"{margin}Are you sure you want to continue? (y/n): ").strip().lower()
-    print()
-
-    if confirm == "y":
-        students.clear()
-        print_message_box("All student data has been reset successfully!", Colors.GREEN)
-    else:
-        print_message_box("Reset cancelled. No data was changed.", Colors.YELLOW)
-
-    pause()
-
-
 # ------------------------------------------------------------------
-# Main program loop
+# Main Loop
 # ------------------------------------------------------------------
 def main():
-    running = True
-
-    while running:
+    while True:
         clear_screen()
         print_menu()
         choice = input(f"{get_margin()}{Colors.BOLD}Enter choice: {Colors.RESET}").strip()
@@ -633,17 +544,15 @@ def main():
         elif choice == "4":
             show_highest_grade()
         elif choice == "5":
-            reset_data()
-        elif choice == "6":
             clear_screen()
             print(
                 f"{get_margin()}{Colors.GREEN}Thank you for using the {SCHOOL_NAME} "
                 f"Grade Management System. Goodbye!{Colors.RESET}"
             )
-            running = False
+            break
         else:
             print()
-            print_message_box("Invalid choice. Please select 1-6.", Colors.RED)
+            print_message_box("Invalid choice. Please select 1-5.", Colors.RED)
             pause()
 
 
