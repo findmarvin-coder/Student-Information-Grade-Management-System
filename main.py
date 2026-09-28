@@ -13,7 +13,7 @@ if os.name == "nt":
 LAYOUT_MODE = "auto"
 
 # Center the box horizontally on laptop/PC screens (True/False).
-# Default is False so it does not create a huge blank space on the left.
+# Kept False so it does not create an unwanted large indent on laptop.
 CENTER_ON_LAPTOP = False
 
 SCHOOL_NAME = "METRO BUSINESS COLLEGE"
@@ -83,9 +83,8 @@ def get_margin():
                 return " " * max((term_w - 32) // 2, 0)
         except Exception:
             pass
-        return "  "  # subtle 2-space offset for clean mobile centering
+        return "  "
 
-    # Laptop / PC: Keep left-aligned with 0 margin unless manually enabled
     if CENTER_ON_LAPTOP:
         try:
             term_w = os.get_terminal_size().columns
@@ -248,7 +247,6 @@ def status_display(status, width=None):
 
 
 def print_menu():
-    # First banner: school name + divider + project title
     print(box_top())
     box_row(SCHOOL_NAME, align="center")
     print(box_divider())
@@ -256,13 +254,11 @@ def print_menu():
     print(box_bottom())
     print()
 
-    # Second banner: subtitle
     print(box_top())
     box_row(MENU_SUBTITLE, align="center")
     print(box_bottom())
     print()
 
-    # Menu options grid
     if is_mobile():
         col_widths = [6, 23]
         header_opt = f"{Colors.YELLOW}{'OPT':^6}{Colors.RESET}"
@@ -454,7 +450,11 @@ def add_student():
         ("Name", name),
         ("Course", course),
     ])
-    print()
+
+    # 1. Clear screen once student details are done
+    input(f"\n{get_margin()}{Colors.CYAN}Press Enter to proceed to grades...{Colors.RESET}")
+    clear_screen()
+    print_header("ADD STUDENT")
 
     print(box_top())
     box_row("GRADES", align="center")
@@ -467,16 +467,6 @@ def add_student():
     assignment = get_valid_grade("Assignment: ")
     project = get_valid_grade("Project: ")
     final_exam = get_valid_grade("Final Exam: ")
-    print()
-    print_field_table([
-        ("Quiz 1", f"{quiz1:.2f}"),
-        ("Quiz 2", f"{quiz2:.2f}"),
-        ("Quiz 3", f"{quiz3:.2f}"),
-        ("Assignment", f"{assignment:.2f}"),
-        ("Project", f"{project:.2f}"),
-        ("Final Exam", f"{final_exam:.2f}"),
-    ])
-    print()
 
     quiz_avg = calculate_quiz_average(quiz1, quiz2, quiz3)
     final_grade = calculate_final_grade(quiz_avg, assignment, project, final_exam)
@@ -498,6 +488,18 @@ def add_student():
     }
     students.append(student)
 
+    # 2. Clear screen once grade entry is done to show the summary cleanly
+    clear_screen()
+    print_header("ADD STUDENT")
+    print_field_table([
+        ("Quiz 1", f"{quiz1:.2f}"),
+        ("Quiz 2", f"{quiz2:.2f}"),
+        ("Quiz 3", f"{quiz3:.2f}"),
+        ("Assignment", f"{assignment:.2f}"),
+        ("Project", f"{project:.2f}"),
+        ("Final Exam", f"{final_exam:.2f}"),
+    ])
+    print()
     print_message_box("Student successfully added!", Colors.GREEN)
     pause()
 
