@@ -24,5 +24,9 @@ Grade Computation:
 
 Passing grade: 75 and above.
 
+Screenshot
+
+<img src="./asset/Screenshot 2026-09-28 183829.png" alt="Screenshot">
+
 
 Created by: Marvin Lucban
