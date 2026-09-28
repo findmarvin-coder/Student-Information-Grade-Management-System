@@ -15,6 +15,8 @@ Features:
 
 - Screen clearing + "Press Enter" pauses for a smoother, less cluttered flow.
 
+- Optimize in phone and laptop/pc
+
 Grade Computation:
     Quiz Average = (Quiz 1 + Quiz 2 + Quiz 3) / 3
     Final Grade  = Quiz Average  x 30%
