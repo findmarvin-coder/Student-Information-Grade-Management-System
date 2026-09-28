@@ -26,7 +26,7 @@ Grade Computation:
 
 Passing grade: 75 and above.
 
-Screenshot
+SCREENSHOT
 
 <img src="./asset/Screenshot 2026-09-28 190953.png" alt="Screenshot">
 
