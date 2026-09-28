@@ -13,7 +13,7 @@ if os.name == "nt":
 LAYOUT_MODE = "auto"
 
 # Center the box horizontally on laptop/PC screens (True/False).
-# Kept False so it does not create an unwanted large indent on laptop.
+# Kept False so it aligns cleanly to the left without large spacing.
 CENTER_ON_LAPTOP = False
 
 SCHOOL_NAME = "METRO BUSINESS COLLEGE"
@@ -21,7 +21,7 @@ PROJECT_TITLE = "STUDENT INFORMATION & GRADE MANAGEMENT SYSTEM"
 MENU_SUBTITLE = "STUDENT GRADE MANAGEMENT"
 PASSING_GRADE = 75
 
-students = []  # list of dictionaries -- the in-memory student database
+students = []  # in-memory student database
 
 
 class Colors:
@@ -50,13 +50,13 @@ def is_mobile():
     if LAYOUT_MODE == "laptop":
         return False
 
-    # Check for mobile/Android environment variables
+    # Check for Android / mobile terminal environments
     if any(k in os.environ for k in ("ANDROID_ROOT", "ANDROID_DATA", "TERMUX_VERSION")):
         return True
     if hasattr(sys, "getandroidapilevel"):
         return True
 
-    # Fallback: check terminal column width
+    # Check terminal width
     try:
         cols, _ = os.get_terminal_size()
         if cols < 50:
@@ -68,7 +68,7 @@ def is_mobile():
 
 
 def get_layout_widths():
-    # Mobile box width is 32; Laptop box width is 52
+    # Mobile width: 32 (inner: 30) | Laptop width: 52 (inner: 50)
     if is_mobile():
         return 32, 30
     return 52, 50
@@ -97,7 +97,7 @@ def get_margin():
 
 
 # ------------------------------------------------------------------
-# Clear Screen and Pause helper
+# Screen and Pause helpers
 # ------------------------------------------------------------------
 def clear_screen():
     os.system("cls" if os.name == "nt" else "clear")
@@ -109,7 +109,7 @@ def pause():
 
 
 # ------------------------------------------------------------------
-# Single-column box helpers (headers, banners, message boxes)
+# Single-column box helpers
 # ------------------------------------------------------------------
 def box_top(left="┌", right="┐"):
     _, inner_width = get_layout_widths()
@@ -202,7 +202,7 @@ def print_message_box(text, color=None):
 
 
 # ------------------------------------------------------------------
-# Multi-column grid helpers (menu, student table, student card)
+# Multi-column grid helpers
 # ------------------------------------------------------------------
 def grid_border(col_widths, left, mid, right):
     parts = ["─" * w for w in col_widths]
@@ -357,15 +357,16 @@ def get_non_empty_text(prompt):
 # Grade computation functions
 # ------------------------------------------------------------------
 def calculate_quiz_average(quiz1, quiz2, quiz3):
-    return (quiz1 + quiz2 + quiz3) / 3
+    return round((quiz1 + quiz2 + quiz3) / 3, 2)
 
 
 def calculate_final_grade(quiz_avg, assignment, project, final_exam):
-    return (
+    return round(
         (quiz_avg * 0.30)
         + (assignment * 0.10)
         + (project * 0.20)
-        + (final_exam * 0.40)
+        + (final_exam * 0.40),
+        2,
     )
 
 
@@ -451,7 +452,7 @@ def add_student():
         ("Course", course),
     ])
 
-    # 1. Clear screen once student details are done
+    # Clear screen after details are confirmed
     input(f"\n{get_margin()}{Colors.CYAN}Press Enter to proceed to grades...{Colors.RESET}")
     clear_screen()
     print_header("ADD STUDENT")
@@ -468,6 +469,7 @@ def add_student():
     project = get_valid_grade("Project: ")
     final_exam = get_valid_grade("Final Exam: ")
 
+    # Compute Quiz Average, Final Grade, and Passing Status
     quiz_avg = calculate_quiz_average(quiz1, quiz2, quiz3)
     final_grade = calculate_final_grade(quiz_avg, assignment, project, final_exam)
     status = get_status(final_grade)
@@ -488,17 +490,10 @@ def add_student():
     }
     students.append(student)
 
-    # 2. Clear screen once grade entry is done to show the summary cleanly
+    # Clear screen and display full computed summary
     clear_screen()
-    print_header("ADD STUDENT")
-    print_field_table([
-        ("Quiz 1", f"{quiz1:.2f}"),
-        ("Quiz 2", f"{quiz2:.2f}"),
-        ("Quiz 3", f"{quiz3:.2f}"),
-        ("Assignment", f"{assignment:.2f}"),
-        ("Project", f"{project:.2f}"),
-        ("Final Exam", f"{final_exam:.2f}"),
-    ])
+    print_header("STUDENT SUMMARY")
+    print_student_card(student)
     print()
     print_message_box("Student successfully added!", Colors.GREEN)
     pause()
